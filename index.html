@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>File Tampering Detection System</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Roboto&display=swap');
+  body {
+    margin: 0; font-family: 'Roboto', sans-serif;
+    background: #0b2545;
+    color: #e1eaff;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+  header {
+    background: #153a76;
+    padding: 1rem 2rem;
+    text-align: center;
+    font-weight: 700;
+    font-size: 1.8rem;
+    color: #ffffff;
+  }
+  main {
+    flex: 1;
+    padding: 1rem 2rem;
+    max-width: 900px;
+    margin: auto;
+  }
+  h2 {
+    color: #aad4ff;
+  }
+  .theme-white {
+    color: white;
+  }
+  .container {
+    background: #1c3a70;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 0 10px #264f8daa;
+  }
+  label {
+    font-weight: 500;
+    margin-bottom: 0.4rem;
+    display: block;
+  }
+  input[type="file"] {
+    margin-bottom: 1rem;
+  }
+  button {
+    background: #4477d9;
+    border: none;
+    color: white;
+    padding: 0.55rem 1.2rem;
+    margin-right: 1rem;
+    border-radius: 4px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.3s;
+  }
+  button:hover:not(:disabled) {
+    background: #2e59b6;
+  }
+  button:disabled {
+    background: #3a5dab66;
+    cursor: default;
+  }
+  .status {
+    margin-top: 1rem;
+    font-weight: 700;
+    font-size: 1.2rem;
+    padding: 0.6rem 1rem;
+    border-radius: 6px;
+    display: inline-block;
+  }
+  .status.intact {
+    background-color: #2bb673;
+    color: #e2f5e9;
+  }
+  .status.tampering {
+    background-color: #d94a44;
+    color: #f9e3e3;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+  }
+  th, td {
+    border-bottom: 1px solid #4477d9aa;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.95rem;
+  }
+  th {
+    color: #aad4ff;
+    text-align: left;
+  }
+  .notes {
+    font-size: 0.9rem;
+    color: #bbe0ff;
+    margin-top: 0.7rem;
+  }
+  .error {
+    color: #f84b4b;
+    font-weight: 700;
+    margin-top: 0.8rem;
+  }
+  .footer {
+    text-align: center;
+    font-size: 0.8rem;
+    padding: 1rem;
+    background: #153a76;
+    color: #aac9ffcc;
+  }
+  @media (max-width: 600px) {
+    main {
+      padding: 1rem;
+      max-width: 100%;
+    }
+    button {
+      margin-bottom: 0.8rem;
+      width: 100%;
+    }
+  }
+  nav {
+    background: #153a76;
+    padding: 0.8rem 2rem;
+    color: white;
+  }
+  nav a {
+    color: #aad4ff;
+    margin-right: 1.6rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  nav a:hover, nav a.active {
+    color: #e1eaff;
+    text-decoration: underline;
+  }
+  #info-section {
+    display: none;
+    background: #1c3a70;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-top: 2rem;
+    color: #c8def8;
+    max-height: 75vh;
+    overflow-y: auto;
+  }
+  #info-section h3 {
+    margin-top: 1rem;
+    color: #aad4ff;
+  }
+</style>
+</head>
+<body>
+
+<header>File Tampering Detection System</header>
+
+<nav>
+  <a id="nav-dashboard" class="active" href="#">Dashboard</a>
+  <a id="nav-info" href="#">Project Info</a>
+</nav>
+
+<main>
+  <section id="dashboard-section" class="container">
+    <h2>Dashboard</h2>
+    <label for="file-input">Select a file to analyze</label>
+    <input type="file" id="file-input" accept="*/*" />
+    <div>
+      <button id="btn-register" disabled>Register Original File</button>
+      <button id="btn-verify" disabled>Verify File</button>
+      <button id="btn-reset" >Reset</button>
+    </div>
+    <div id="error-message" class="error" role="alert" aria-live="assertive"></div>
+
+    <div id="result-display" style="margin-top: 1.5rem;">
+
+      <table id="result-table" aria-live="polite" style="display: none;">
+        <tbody>
+          <tr><th>Filename:</th><td id="res-filename"></td></tr>
+          <tr><th>Original SHA-256 Hash:</th><td id="res-original-hash"></td></tr>
+          <tr><th>Current SHA-256 Hash:</th><td id="res-current-hash"></td></tr>
+          <tr><th>Timestamp:</th><td id="res-timestamp"></td></tr>
+          <tr><th>Result:</th><td id="res-result"></td></tr>
+        </tbody>
+      </table>
+
+    </div>
+
+    <div class="notes" style="margin-top: 1.5rem;">
+      <h3>Instructions</h3>
+      <ol>
+        <li>Select a file from your computer using the file selector.</li>
+        <li>Click <strong>Register Original File</strong> to save its hash as the baseline.</li>
+        <li>To check if the file is modified, select it again (same or edited version).</li>
+        <li>Click <strong>Verify File</strong> to compare the current hash with the baseline.</li>
+        <li>See the result displayed below: <span style="color:#53d053;font-weight:bold;">INTACT</span> means unchanged, <span style="color:#d94a44;font-weight:bold;">TAMPERING DETECTED</span> means mismatch.</li>
+        <li>Use <strong>Reset</strong> to clear all data and start fresh.</li>
+      </ol>
+      <p><strong>Note on data storage:</strong> Baseline hashes are saved <em>locally in your browser's storage</em>. This means they persist as long as you don't clear browser data, but can be cleared at any time. The file contents never leave your computer.</p>
+    </div>
+
+  </section>
+
+  <section id="info-section" class="container" tabindex="0" aria-label="Project Information">
+    <h2>Project Overview</h2>
+    <p>This File Tampering Detection System is designed to detect unauthorized modifications to files by comparing SHA-256 hashes.</p>
+
+    <h3>Abstract</h3>
+    <p>The project implements a secure, client-side method to establish a trusted baseline for a file's content and later verify if the file has been tampered with by recalculating and comparing cryptographic hashes.</p>
+
+    <h3>Objectives</h3>
+    <ul>
+      <li>To detect unauthorized file changes quickly and reliably.</li>
+      <li>To educate users on cryptographic hashing and file integrity verification.</li>
+      <li>To build a user-friendly, secure web application tool adhering to data privacy principles.</li>
+    </ul>
+
+    <h3>Methodology</h3>
+    <p>The system uses the SHA-256 hashing algorithm implemented via the Web Crypto API to produce unique digital fingerprints for files. Users register an original file hash locally, then verify any later version by comparing hashes. Matching hashes confirm file integrity; differences indicate tampering.</p>
+
+    <h3>Algorithm</h3>
+    <ol>
+      <li>User selects a file.</li>
+      <li>Compute SHA-256 hash of the file's contents.</li>
+      <li>Register the hash as the baseline and save it locally.</li>
+      <li>On verification, compute the current hash again.</li>
+      <li>Compare current hash with baseline.</li>
+      <li>If equal, show "INTACT"; if not, show "TAMPERING DETECTED".</li>
+    </ol>
+
+    <h3>Modules</h3>
+    <ul>
+      <li>File Selection and Upload Interface</li>
+      <li>SHA-256 Hash Calculation Using Web Crypto API</li>
+      <li>Local Storage Management for Baseline Hashes</li>
+      <li>Result Display and User Feedback</li>
+      <li>Error Handling and User Guidance</li>
+      <li>Information Section Explaining Project Details</li>
+    </ul>
+
+    <h3>Test Cases</h3>
+    <ul>
+      <li>Register a text file (e.g., notes.txt), verify it unchanged → result should be INTACT.</li>
+      <li>Modify the text file (add some text), verify again → result should be TAMPERING DETECTED.</li>
+      <li>Try to verify without registering → error message about missing baseline.</li>
+      <li>Upload unsupported or empty files → appropriate errors or messages.</li>
+      <li>Reset function clears saved data and GUI states.</li>
+    </ul>
+
+    <h3>Limitations</h3>
+    <ul>
+      <li>Saved baseline hashes rely on browser local storage, which can be cleared.</li>
+      <li>Local storage is accessible to users and other scripts running on the same origin — not fully secure against a determined attacker.</li>
+      <li>Does not protect against file replacements at the operating system level outside this app.</li>
+      <li>Does not support multiple files simultaneously.</li>
+    </ul>
+
+    <h3>Conclusion</h3>
+    <p>This system provides a basic, secure way to detect file tampering on the client side without exposing file content to servers. It educates users about cryptographic integrity checks and highlights browser storage security considerations.</p>
+
+    <h3>Security Notes and Recommendations</h3>
+    <p>Baseline hashes stored locally are vulnerable if an attacker gains access to browser data or modifies it in the same storage environment. For stronger security in real scenarios:</p>
+    <ul>
+      <li>Use secure, tamper-proof external hardware storage or secure enclave technologies.</li>
+      <li>Combine hash storage with digital signatures and trusted timestamping from a secure server.</li>
+      <li>Implement user authentication and encrypted databases for hash management.</li>
+      <li>Use dedicated integrity monitoring software at the system or application level.</li>
+    </ul>
+  </section>
+</main>
+
+<footer class="footer">© 2026 College Mini-Project | File Tampering Detection System</footer>
+
+<script>
+(() => {
+  const fileInput = document.getElementById('file-input');
+  const btnRegister = document.getElementById('btn-register');
+  const btnVerify = document.getElementById('btn-verify');
+  const btnReset = document.getElementById('btn-reset');
+  const errorMessage = document.getElementById('error-message');
+  const resultTable = document.getElementById('result-table');
+  const resFilename = document.getElementById('res-filename');
+  const resOriginalHash = document.getElementById('res-original-hash');
+  const resCurrentHash = document.getElementById('res-current-hash');
+  const resTimestamp = document.getElementById('res-timestamp');
+  const resResult = document.getElementById('res-result');
+
+  const navDashboard = document.getElementById('nav-dashboard');
+  const navInfo = document.getElementById('nav-info');
+  const dashboardSection = document.getElementById('dashboard-section');
+  const infoSection = document.getElementById('info-section');
+
+  // Storage key, only one baseline stored for simplicity
+  const STORAGE_KEY = 'ftds_baseline';
+
+  let currentFile = null;
+
+  function resetUI() {
+    currentFile = null;
+    fileInput.value = '';
+    errorMessage.textContent = '';
+    btnRegister.disabled = true;
+    btnVerify.disabled = true;
+    resultTable.style.display = 'none';
+    resFilename.textContent = '';
+    resOriginalHash.textContent = '';
+    resCurrentHash.textContent = '';
+    resTimestamp.textContent = '';
+    resResult.textContent = '';
+  }
+
+  // Utility to convert ArrayBuffer to hex string
+  function toHex(buffer) {
+    const hexCodes = [];
+    const view = new DataView(buffer);
+    for (let i = 0; i < view.byteLength; i += 4) {
+      // Read 4 bytes and convert
+      const value = view.getUint32(i);
+      const stringValue = value.toString(16).padStart(8, '0');
+      hexCodes.push(stringValue);
+    }
+    return hexCodes.join('');
+  }
+
+  // Calculate SHA-256 from a File object, returns a Promise<string> of hex hash
+  async function calculateSHA256(file) {
+    const arrayBuffer = await file.arrayBuffer();
+    const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+    return toHex(hashBuffer);
+  }
+
+  // Load baseline from localStorage
+  function loadBaseline() {
+    try {
+      const data = localStorage.getItem(STORAGE_KEY);
+      if (!data) return null;
+      return JSON.parse(data);
+    } catch {
+      return null;
+    }
+  }
+
+  // Save baseline to localStorage
+  function saveBaseline(record) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(record));
+  }
+
+  // Remove baseline from localStorage
+  function removeBaseline() {
+    localStorage.removeItem(STORAGE_KEY);
+  }
+
+  // Event: file selected
+  fileInput.addEventListener('change', () => {
+    errorMessage.textContent = '';
+    if (fileInput.files.length === 0) {
+      currentFile = null;
+      btnRegister.disabled = true;
+      btnVerify.disabled = true;
+      return;
+    }
+    currentFile = fileInput.files[0];
+    btnRegister.disabled = false;
+    btnVerify.disabled = false;
+  });
+
+  // Event: Register original file hash
+  btnRegister.addEventListener('click', async () => {
+    if (!currentFile) {
+      errorMessage.textContent = 'Please select a file before registering.';
+      return;
+    }
+    errorMessage.textContent = '';
+    btnRegister.disabled = true;
+    btnVerify.disabled = true;
+
+    try {
+      const hash = await calculateSHA256(currentFile);
+      const timestamp = new Date().toLocaleString();
+      const record = {
+        filename: currentFile.name,
+        hash,
+        timestamp,
+      };
+      saveBaseline(record);
+
+      // Show result info
+      resFilename.textContent = record.filename;
+      resOriginalHash.textContent = record.hash;
+      resCurrentHash.textContent = record.hash;
+      resTimestamp.textContent = record.timestamp;
+      resResult.textContent = 'INTACT';
+      resResult.className = 'status intact';
+      resultTable.style.display = 'table';
+
+      errorMessage.textContent = 'Original file registered successfully.';
+      errorMessage.style.color = '#53d053'; // green
+    } catch (e) {
+      errorMessage.textContent = 'Error calculating hash. Try again.';
+      errorMessage.style.color = '#f84b4b';
+    } finally {
+      btnRegister.disabled = false;
+      btnVerify.disabled = false;
+    }
+  });
+
+  // Event: Verify file hash matches baseline
+  btnVerify.addEventListener('click', async () => {
+    if (!currentFile) {
+      errorMessage.textContent = 'Please select a file before verification.';
+      return;
+    }
+
+    const baseline = loadBaseline();
+    if (!baseline) {
+      errorMessage.textContent = 'No baseline registered. Please register the original file first.';
+      return;
+    }
+    errorMessage.textContent = '';
+    btnRegister.disabled = true;
+    btnVerify.disabled = true;
+
+    try {
+      const currentHash = await calculateSHA256(currentFile);
+      const timestamp = new Date().toLocaleString();
+
+      resFilename.textContent = currentFile.name;
+      resOriginalHash.textContent = baseline.hash;
+      resCurrentHash.textContent = currentHash;
+      resTimestamp.textContent = timestamp;
+
+      if (baseline.hash === currentHash) {
+        resResult.textContent = 'INTACT';
+        resResult.className = 'status intact';
+        errorMessage.textContent = 'File is intact and unchanged.';
+        errorMessage.style.color = '#53d053';
+      } else {
+        resResult.textContent = 'TAMPERING DETECTED';
+        resResult.className = 'status tampering';
+        errorMessage.textContent = 'Warning: File tampering detected!';
+        errorMessage.style.color = '#d94a44';
+      }
+      resultTable.style.display = 'table';
+
+    } catch (e) {
+      errorMessage.textContent = 'Error calculating hash during verification. Try again.';
+      errorMessage.style.color = '#f84b4b';
+    } finally {
+      btnRegister.disabled = false;
+      btnVerify.disabled = false;
+    }
+  });
+
+  // Event: Reset the entire system (clear data + UI)
+  btnReset.addEventListener('click', () => {
+    removeBaseline();
+    resetUI();
+    errorMessage.textContent = 'System reset completed. Baseline removed.';
+    errorMessage.style.color = '#53d053';
+  });
+
+  // Init UI state on load
+  resetUI();
+
+  // Nav controls for Dashboard / Project Info toggle
+  function switchSection(showDashboard) {
+    if (showDashboard) {
+      dashboardSection.style.display = 'block';
+      infoSection.style.display = 'none';
+      navDashboard.classList.add('active');
+      navInfo.classList.remove('active');
+    } else {
+      dashboardSection.style.display = 'none';
+      infoSection.style.display = 'block';
+      navDashboard.classList.remove('active');
+      navInfo.classList.add('active');
+    }
+    errorMessage.textContent = '';
+  }
+
+  navDashboard.addEventListener('click', e => {
+    e.preventDefault();
+    switchSection(true);
+  });
+
+  navInfo.addEventListener('click', e => {
+    e.preventDefault();
+    switchSection(false);
+  });
+})();
+</script>
+
+</body>
+</html>
